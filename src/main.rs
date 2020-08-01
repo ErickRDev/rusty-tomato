@@ -16,7 +16,8 @@ use std::time::{Duration, Instant};
 
 use crossterm::{
     event::{self, read, Event, KeyCode},
-    execute, terminal,
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
 use tui::{
@@ -46,8 +47,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     let opts = Pomodoro::from_args();
     println!("{:#?}", opts);
 
+    enable_raw_mode()?;
+
     let mut stdout = stdout();
-    execute!(stdout, terminal::EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen)?;
 
     let backend = CrosstermBackend::new(stdout);
 
@@ -98,10 +101,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         match rx.recv()?.code {
             KeyCode::Char('q') => {
-                execute!(terminal.backend_mut(), terminal::LeaveAlternateScreen)?;
-                return Ok(());
+                disable_raw_mode()?;
+                execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+                break;
             }
             _ => {}
         }
     }
+
+    Ok(())
 }
