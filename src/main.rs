@@ -1,18 +1,15 @@
 pub mod widgets;
 
-extern crate chrono;
-use chrono::{DateTime, Utc};
-
 use structopt::StructOpt;
 
 use std::{
     error::Error,
     io::{stdout, Write},
+    time::{Duration, Instant},
 };
 
 use std::sync::mpsc;
 use std::thread;
-use std::time::{Duration, Instant};
 
 use crossterm::{
     event::{self, read, Event, KeyCode},
@@ -23,12 +20,12 @@ use crossterm::{
 use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Paragraph, Text},
+    style::{Color, Style},
+    widgets::{Block, Borders, Clear},
     Terminal,
 };
 
-use crate::widgets::Clock;
+use crate::widgets::Timer;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "pomodoro")]
@@ -41,6 +38,11 @@ struct Pomodoro {
 
     #[structopt(short, long, default_value = "250")]
     tick_duration: u64,
+}
+
+enum TickContent {
+    KeyPress(crossterm::event::KeyEvent),
+    None,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -63,13 +65,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::spawn(move || loop {
         if event::poll(Duration::from_millis(opts.tick_duration)).unwrap() {
             if let Event::Key(key) = read().unwrap() {
-                tx.send(key).unwrap();
+                tx.send(TickContent::KeyPress(key)).unwrap();
             }
         }
+
+        tx.send(TickContent::None).unwrap();
     });
 
+    let duration = Duration::new(900, 0);
+
+    let mut started_at = Instant::now();
+    let mut draw_edges = false;
+
     loop {
-        terminal.draw(|mut f| {
+        terminal.draw(|f| {
             let size = f.size();
 
             let block = Block::default()
@@ -82,30 +91,44 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .margin(5)
                 .constraints(
                     [
-                        Constraint::Percentage(10),
-                        Constraint::Percentage(80),
-                        Constraint::Percentage(10),
+                        Constraint::Percentage(40),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(40),
                     ]
                     .as_ref(),
                 )
                 .split(size);
 
-            let clock = Clock::default();
-            f.render_widget(clock, chunks[1]);
+            f.render_widget(Clear, chunks[1]);
 
-            // for ch in 0..chunks.len() {
-            //     let clock = Clock::default();
-            //     f.render_widget(clock, chunks[ch]);
-            // }
+            let elapsed = Instant::now() - started_at;
+            let remaining = duration - elapsed;
+
+            let minutes = remaining.as_secs() / 60;
+            let seconds = remaining.as_secs() % 60;
+
+            let time_str = format!("{:02}:{:02}", minutes, seconds);
+
+            let clock = Timer::default().set_timer(&time_str).draw_edges(draw_edges);
+            f.render_widget(clock, chunks[1]);
         })?;
 
-        match rx.recv()?.code {
-            KeyCode::Char('q') => {
-                disable_raw_mode()?;
-                execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-                break;
-            }
-            _ => {}
+        match rx.recv()? {
+            TickContent::KeyPress(key_event) => match key_event.code {
+                KeyCode::Char('q') => {
+                    disable_raw_mode()?;
+                    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
+                    break;
+                }
+                KeyCode::Char('r') => {
+                    started_at = Instant::now();
+                }
+                KeyCode::Char('d') => {
+                    draw_edges = !draw_edges;
+                }
+                _ => {}
+            },
+            TickContent::None => {}
         }
     }
 

@@ -1,3 +1,3 @@
-mod clock;
+mod timer;
 
-pub use self::clock::Clock;
+pub use self::timer::Timer;
