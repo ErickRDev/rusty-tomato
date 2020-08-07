@@ -8,22 +8,29 @@ use tui::{
 
 #[derive(Clone)]
 pub struct Timer<'a> {
-    current_timer: Option<&'a str>,
+    time_remaining: Option<&'a str>,
+    is_due: bool,
     draw_edges: bool,
 }
 
 impl<'a> Default for Timer<'a> {
     fn default() -> Timer<'a> {
         Timer {
-            current_timer: None,
+            time_remaining: None,
+            is_due: false,
             draw_edges: false,
         }
     }
 }
 
 impl<'a> Timer<'a> {
-    pub fn set_timer(mut self, timer: &'a str) -> Timer<'a> {
-        self.current_timer = Some(timer);
+    pub fn time_remaining(mut self, timer: &'a str) -> Timer<'a> {
+        self.time_remaining = Some(timer);
+        self
+    }
+
+    pub fn is_due(mut self, is_due: bool) -> Timer<'a> {
+        self.is_due = is_due;
         self
     }
 
@@ -63,23 +70,23 @@ impl<'a> Widget for Timer<'a> {
             )
             .split(centered);
 
-        let mut areas_of_intereset: Vec<Rect> = Vec::new();
-        areas_of_intereset.push(areas[0]);
-        areas_of_intereset.push(areas[2]);
-        areas_of_intereset.push(areas[3]);
-        areas_of_intereset.push(areas[4]);
-        areas_of_intereset.push(areas[6]);
+        let areas_of_interest = vec![
+            areas[0],
+            areas[1],
+            areas[3],
+            areas[4],
+            areas[6]
+        ];
 
-        let graphemes = match self.current_timer {
+        let graphemes = match self.time_remaining {
             Some(timer) => timer.chars(),
             None => return,
         };
 
-        areas_of_intereset
+        areas_of_interest
             .iter()
             .zip(graphemes)
             .for_each(|(&area, grapheme)| {
-                // Drawing borders
                 if self.draw_edges {
                     let coords = get_rendering_instructions(area);
                     for ((x, y), s) in coords {
@@ -90,7 +97,12 @@ impl<'a> Widget for Timer<'a> {
                 let x = area.x + (area.width / 2);
                 let y = area.y + (area.height / 2);
 
-                buf.get_mut(x, y).set_char(grapheme);
+                let style = match self.is_due {
+                    true => Style::default().fg(Color::Red),
+                    false => Style::default().fg(Color::White)
+                };
+
+                buf.get_mut(x, y).set_char(grapheme).set_style(style);
             });
     }
 }

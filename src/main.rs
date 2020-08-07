@@ -1,3 +1,4 @@
+pub mod app;
 pub mod widgets;
 
 use structopt::StructOpt;
@@ -25,6 +26,7 @@ use tui::{
     Terminal,
 };
 
+use crate::app::App;
 use crate::widgets::Timer;
 
 #[derive(StructOpt, Debug)]
@@ -72,10 +74,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         tx.send(TickContent::None).unwrap();
     });
 
-    let duration = Duration::new(900, 0);
-
-    let mut started_at = Instant::now();
     let mut draw_edges = false;
+
+    let mut app = App::default();
+    app.start_timer();
 
     loop {
         terminal.draw(|f| {
@@ -101,15 +103,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             f.render_widget(Clear, chunks[1]);
 
-            let elapsed = Instant::now() - started_at;
-            let remaining = duration - elapsed;
+            let (is_due, remaining_time) = app.get_remaining_time();
 
-            let minutes = remaining.as_secs() / 60;
-            let seconds = remaining.as_secs() % 60;
-
-            let time_str = format!("{:02}:{:02}", minutes, seconds);
-
-            let clock = Timer::default().set_timer(&time_str).draw_edges(draw_edges);
+            let clock = Timer::default()
+                .time_remaining(&remaining_time)
+                .is_due(is_due)
+                .draw_edges(draw_edges);
             f.render_widget(clock, chunks[1]);
         })?;
 
@@ -121,11 +120,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                     break;
                 }
                 KeyCode::Char('r') => {
-                    started_at = Instant::now();
+                    app.reset_timer();
                 }
                 KeyCode::Char('d') => {
                     draw_edges = !draw_edges;
                 }
+                KeyCode::Char(' ') => {}
                 _ => {}
             },
             TickContent::None => {}
