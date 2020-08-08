@@ -1,2 +1,8 @@
 /target
 **/*.rs.bk
+
+# log file (used to redirect stderr for debugging purposes)
+log
+
+.vscode/
+.vscode/*
