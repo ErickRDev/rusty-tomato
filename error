@@ -1,0 +1,80 @@
+warning: unused import: `Instant`
+ --> src/main.rs:9:22
+  |
+9 |     time::{Duration, Instant},
+  |                      ^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: field is never read: `iteration`
+  --> src/app.rs:44:5
+   |
+44 |     iteration: u32,
+   |     ^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: field is never read: `ended_at`
+  --> src/app.rs:47:5
+   |
+47 |     ended_at: Option<Instant>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field is never read: `history`
+  --> src/app.rs:55:5
+   |
+55 |     history: Vec<PomodoroCycle>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: 4 warnings emitted
+
+    Finished dev [unoptimized + debuginfo] target(s) in 0.03s
+     Running `target/debug/pomodoro`
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111693, tv_nsec: 296139421 }
+0ns
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111693, tv_nsec: 296139421 }
+0ns
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111693, tv_nsec: 296139421 }
+0ns
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111693, tv_nsec: 296139421 }
+0ns
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111693, tv_nsec: 296139421 }
+0ns
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111694, tv_nsec: 229212421 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111694, tv_nsec: 239278721 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111694, tv_nsec: 479715021 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111694, tv_nsec: 730197721 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111694, tv_nsec: 981114021 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111695, tv_nsec: 232055121 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111695, tv_nsec: 482464221 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111695, tv_nsec: 732717821 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111695, tv_nsec: 744313221 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111695, tv_nsec: 744313221 }
+931.6903ms
+Instant { tv_sec: 111689, tv_nsec: 789944421 }
+Instant { tv_sec: 111695, tv_nsec: 744313221 }
+931.6903ms

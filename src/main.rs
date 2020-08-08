@@ -6,7 +6,7 @@ use structopt::StructOpt;
 use std::{
     error::Error,
     io::{stdout, Write},
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use std::sync::mpsc;
@@ -77,7 +77,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut draw_edges = false;
 
     let mut app = App::default();
-    app.start_timer();
 
     loop {
         terminal.draw(|f| {
@@ -105,10 +104,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let (is_due, remaining_time) = app.get_remaining_time();
 
+            if is_due {
+                app.finish_current_cycle();
+            }
+
             let clock = Timer::default()
                 .time_remaining(&remaining_time)
                 .is_due(is_due)
                 .draw_edges(draw_edges);
+
             f.render_widget(clock, chunks[1]);
         })?;
 
@@ -119,13 +123,15 @@ fn main() -> Result<(), Box<dyn Error>> {
                     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
                     break;
                 }
-                KeyCode::Char('r') => {
-                    app.reset_timer();
-                }
+                // KeyCode::Char('r') => {
+                //     app.reset_timer();
+                // }
                 KeyCode::Char('d') => {
                     draw_edges = !draw_edges;
                 }
-                KeyCode::Char(' ') => {}
+                KeyCode::Char(' ') => {
+                    app.toggle_timer();
+                }
                 _ => {}
             },
             TickContent::None => {}

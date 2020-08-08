@@ -70,13 +70,7 @@ impl<'a> Widget for Timer<'a> {
             )
             .split(centered);
 
-        let areas_of_interest = vec![
-            areas[0],
-            areas[1],
-            areas[3],
-            areas[4],
-            areas[6]
-        ];
+        let areas_of_interest = vec![areas[0], areas[1], areas[3], areas[4], areas[6]];
 
         let graphemes = match self.time_remaining {
             Some(timer) => timer.chars(),
@@ -99,7 +93,7 @@ impl<'a> Widget for Timer<'a> {
 
                 let style = match self.is_due {
                     true => Style::default().fg(Color::Red),
-                    false => Style::default().fg(Color::White)
+                    false => Style::default().fg(Color::White),
                 };
 
                 buf.get_mut(x, y).set_char(grapheme).set_style(style);
