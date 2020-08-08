@@ -74,18 +74,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         tx.send(TickContent::None).unwrap();
     });
 
-    let mut draw_edges = false;
+    let mut draw_borders = false;
 
     let mut app = App::default();
 
     loop {
         terminal.draw(|f| {
             let size = f.size();
+            f.render_widget(Clear, size);
 
             let block = Block::default()
                 .style(Style::default().fg(Color::Yellow))
                 .borders(Borders::ALL);
-            f.render_widget(block, size);
+
+            if draw_borders {
+                f.render_widget(block.clone(), size);
+            }
 
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
@@ -102,6 +106,10 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             f.render_widget(Clear, chunks[1]);
 
+            if draw_borders {
+                f.render_widget(block.clone(), chunks[1]);
+            }
+
             let (is_due, remaining_time) = app.get_remaining_time();
 
             if is_due {
@@ -111,7 +119,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             let clock = Timer::default()
                 .time_remaining(&remaining_time)
                 .is_due(is_due)
-                .draw_edges(draw_edges);
+                .draw_borders(draw_borders);
 
             f.render_widget(clock, chunks[1]);
         })?;
@@ -123,11 +131,11 @@ fn main() -> Result<(), Box<dyn Error>> {
                     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
                     break;
                 }
-                // KeyCode::Char('r') => {
-                //     app.reset_timer();
-                // }
+                KeyCode::Char('c') => {
+                    app.finish_current_cycle();
+                }
                 KeyCode::Char('d') => {
-                    draw_edges = !draw_edges;
+                    draw_borders = !draw_borders;
                 }
                 KeyCode::Char(' ') => {
                     app.toggle_timer();

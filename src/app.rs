@@ -204,8 +204,4 @@ impl App {
         self.history.push(self.current_cycle.clone());
         self.current_cycle = PomodoroCycle::new(self.current_cycle.stage_iteration + 1);
     }
-
-    // fn change_phase(&mut self, phase: PomodoroStage) {
-    //     // self.
-    // }
 }

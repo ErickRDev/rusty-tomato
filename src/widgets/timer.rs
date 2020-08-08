@@ -10,7 +10,7 @@ use tui::{
 pub struct Timer<'a> {
     time_remaining: Option<&'a str>,
     is_due: bool,
-    draw_edges: bool,
+    draw_borders: bool,
 }
 
 impl<'a> Default for Timer<'a> {
@@ -18,7 +18,7 @@ impl<'a> Default for Timer<'a> {
         Timer {
             time_remaining: None,
             is_due: false,
-            draw_edges: false,
+            draw_borders: false,
         }
     }
 }
@@ -34,8 +34,8 @@ impl<'a> Timer<'a> {
         self
     }
 
-    pub fn draw_edges(mut self, draw_edges: bool) -> Timer<'a> {
-        self.draw_edges = draw_edges;
+    pub fn draw_borders(mut self, draw_borders: bool) -> Timer<'a> {
+        self.draw_borders = draw_borders;
         self
     }
 }
@@ -81,7 +81,7 @@ impl<'a> Widget for Timer<'a> {
             .iter()
             .zip(graphemes)
             .for_each(|(&area, grapheme)| {
-                if self.draw_edges {
+                if self.draw_borders {
                     let coords = get_rendering_instructions(area);
                     for ((x, y), s) in coords {
                         buf.get_mut(x, y).set_symbol(s);
@@ -105,13 +105,13 @@ fn get_rendering_instructions(area: Rect) -> Vec<((u16, u16), &'static str)> {
     let mut vector: Vec<((u16, u16), &'static str)> = Vec::new();
 
     for x in area.x..area.width + area.x {
-        vector.push(((x, area.y), symbols::DOT));
-        vector.push(((x, area.height + area.y - 1), symbols::DOT));
+        vector.push(((x, area.y), symbols::line::HORIZONTAL_UP));
+        vector.push(((x, area.height + area.y - 1), symbols::line::HORIZONTAL_DOWN));
     }
 
     for y in area.y..area.height + area.y {
-        vector.push(((area.x, y), symbols::DOT));
-        vector.push(((area.width + area.x - 1, y), symbols::DOT));
+        vector.push(((area.x, y), symbols::line::VERTICAL_LEFT));
+        vector.push(((area.width + area.x - 1, y), symbols::line::VERTICAL_RIGHT));
     }
 
     vector
