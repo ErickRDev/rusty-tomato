@@ -96,9 +96,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .margin(5)
                 .constraints(
                     [
-                        Constraint::Percentage(20),
+                        Constraint::Percentage(30),
                         Constraint::Percentage(40),
-                        Constraint::Percentage(20),
+                        Constraint::Percentage(30),
                     ]
                     .as_ref(),
                 )
@@ -116,10 +116,18 @@ fn main() -> Result<(), Box<dyn Error>> {
                 app.finish_current_cycle();
             }
 
+            let is_paused = app.is_paused();
+            let elapsed_pause_time: Option<u64> = if is_paused {
+                Some(app.get_pause_elapsed_time())
+            } else {
+                None
+            };
+
             let clock = Timer::default()
                 .time_remaining(&remaining_time)
-                .is_due(is_due)
-                .draw_borders(draw_borders);
+                .borders(draw_borders)
+                .is_paused(is_paused, elapsed_pause_time)
+                .is_due(is_due);
 
             f.render_widget(clock, chunks[1]);
         })?;

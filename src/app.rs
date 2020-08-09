@@ -89,6 +89,12 @@ impl Default for App {
 }
 
 impl App {
+    /// Returns a boolean indicating whether the current cycle is paused or not.
+    pub fn is_paused(&self) -> bool {
+        self.current_cycle.is_paused
+    }
+
+    /// TODO: docstring
     pub fn get_current_stage(&self) -> &PomodoroStage {
         let idx = self.current_cycle.stage_iteration % self.config.stage_sequence.len();
         &self.config.stage_sequence[idx]
@@ -165,6 +171,18 @@ impl App {
         (was_last_active_at - started_at) - total_elapsed_on_pauses
     }
 
+    /// TODO: docstring
+    pub fn get_pause_elapsed_time(&mut self) -> u64 {
+        if self.current_cycle.is_paused {
+            let interruption = self.current_cycle.interruptions.pop().unwrap();
+            let paused_at = interruption.0.clone();
+            self.current_cycle.interruptions.push(interruption);
+            (Instant::now() - paused_at).as_secs()
+        } else {
+            0
+        }
+    }
+
     /// Returns whether the currently configured timer is due
     /// and the time left as a formatted string
     /// # Examples
@@ -197,6 +215,7 @@ impl App {
         (false, format!("{:02}:{:02}", minutes, seconds))
     }
 
+    /// TODO: docstring
     pub fn finish_current_cycle(&mut self) {
         if self.current_cycle.finished_at.is_none() {
             self.current_cycle.finished_at = Some(Instant::now());

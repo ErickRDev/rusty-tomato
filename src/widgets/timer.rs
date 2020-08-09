@@ -9,16 +9,20 @@ use tui::{
 #[derive(Clone)]
 pub struct Timer<'a> {
     time_remaining: Option<&'a str>,
-    is_due: bool,
     draw_borders: bool,
+    is_due: bool,
+    is_paused: bool,
+    has_been_paused_for: Option<u64>,
 }
 
 impl<'a> Default for Timer<'a> {
     fn default() -> Timer<'a> {
         Timer {
             time_remaining: None,
-            is_due: false,
             draw_borders: false,
+            is_due: false,
+            is_paused: false,
+            has_been_paused_for: None,
         }
     }
 }
@@ -34,7 +38,13 @@ impl<'a> Timer<'a> {
         self
     }
 
-    pub fn draw_borders(mut self, draw_borders: bool) -> Timer<'a> {
+    pub fn is_paused(mut self, is_paused: bool, has_been_paused_for: Option<u64>) -> Timer<'a> {
+        self.is_paused = is_paused;
+        self.has_been_paused_for = has_been_paused_for;
+        self
+    }
+
+    pub fn borders(mut self, draw_borders: bool) -> Timer<'a> {
         self.draw_borders = draw_borders;
         self
     }
@@ -42,7 +52,7 @@ impl<'a> Timer<'a> {
 
 impl<'a> Widget for Timer<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-        let centered = Layout::default()
+        let outer_area = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(
                 [
@@ -54,7 +64,42 @@ impl<'a> Widget for Timer<'a> {
             )
             .split(area)[1];
 
-        let areas = Layout::default()
+        let inner_areas = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)].as_ref())
+            .split(outer_area);
+
+        if self.draw_borders {
+            for vertical_box in &inner_areas {
+                draw_borders(vertical_box, buf);
+            }
+        }
+
+        if self.is_paused {
+            let pause_info_area = inner_areas[0];
+
+            // TODO: maybe remove the unecessary 'is_paused' boolean?
+            // if the `has_been_paused_for` property is Option<u64>,
+            // we can use the `None` variant to verify whether the
+            // timer is paused or not.
+            let has_been_paused_for = self.has_been_paused_for.unwrap();
+
+            let minutes = has_been_paused_for / 60;
+            let seconds = has_been_paused_for % 60;
+
+            // TODO: ensure there's space in buffer to write the string
+            let text = format!("PAUSED {} {:02}:{:02}", symbols::DOT, minutes, seconds);
+            (0..text.len())
+                .map(|i| (pause_info_area.x + i as u16, pause_info_area.y))
+                .zip(text.chars())
+                .for_each(|((x, y), c)| {
+                    &buf.get_mut(x, y)
+                        .set_char(c)
+                        .set_style(Style::default().fg(Color::Red));
+                });
+        }
+
+        let timer_areas = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(
                 [
@@ -68,30 +113,33 @@ impl<'a> Widget for Timer<'a> {
                 ]
                 .as_ref(),
             )
-            .split(centered);
+            .split(inner_areas[1]);
 
-        let areas_of_interest = vec![areas[0], areas[2], areas[3], areas[4], areas[6]];
+        let graphemes_areas = vec![
+            timer_areas[0],
+            timer_areas[2],
+            timer_areas[3],
+            timer_areas[4],
+            timer_areas[6],
+        ];
 
         let graphemes = match self.time_remaining {
             Some(timer) => timer.chars(),
             None => return,
         };
 
-        areas_of_interest
+        graphemes_areas
             .iter()
             .zip(graphemes)
             .for_each(|(&area, grapheme)| {
                 if self.draw_borders {
-                    let coords = get_rendering_instructions(area);
-                    for ((x, y), s) in coords {
-                        buf.get_mut(x, y).set_symbol(s);
-                    }
+                    draw_borders(&area, buf);
                 }
 
                 let x = area.x + (area.width / 2);
                 let y = area.y + (area.height / 2);
 
-                let style = match self.is_due {
+                let style = match self.is_due || self.is_paused {
                     true => Style::default().fg(Color::Red),
                     false => Style::default().fg(Color::White),
                 };
@@ -101,26 +149,28 @@ impl<'a> Widget for Timer<'a> {
     }
 }
 
-fn get_rendering_instructions(area: Rect) -> Vec<((u16, u16), &'static str)> {
-    let mut vector: Vec<((u16, u16), &'static str)> = Vec::new();
-
+/// TODO: document & extract this method into utility crate
+fn draw_borders(area: &Rect, buf: &mut Buffer) {
     for x in area.x..area.width + area.x {
-        vector.push(((x, area.y), symbols::line::HORIZONTAL));
-        vector.push(((x, area.height + area.y - 1), symbols::line::HORIZONTAL));
+        buf.get_mut(x, area.y).set_symbol(symbols::line::HORIZONTAL);
+        buf.get_mut(x, area.height + area.y - 1)
+            .set_symbol(symbols::line::HORIZONTAL);
     }
 
     for y in area.y..area.height + area.y {
         if y == area.y {
-            vector.push(((area.x, y), symbols::line::TOP_LEFT));
-            vector.push(((area.width + area.x - 1, y), symbols::line::TOP_RIGHT));
+            buf.get_mut(area.x, y).set_symbol(symbols::line::TOP_LEFT);
+            buf.get_mut(area.width + area.x - 1, y)
+                .set_symbol(symbols::line::TOP_RIGHT);
         } else if y == area.height + area.y - 1 {
-            vector.push(((area.x, y), symbols::line::BOTTOM_LEFT));
-            vector.push(((area.width + area.x - 1, y), symbols::line::BOTTOM_RIGHT));
+            buf.get_mut(area.x, y)
+                .set_symbol(symbols::line::BOTTOM_LEFT);
+            buf.get_mut(area.width + area.x - 1, y)
+                .set_symbol(symbols::line::BOTTOM_RIGHT);
         } else {
-            vector.push(((area.x, y), symbols::line::VERTICAL));
-            vector.push(((area.width + area.x - 1, y), symbols::line::VERTICAL));
+            buf.get_mut(area.x, y).set_symbol(symbols::line::VERTICAL);
+            buf.get_mut(area.width + area.x - 1, y)
+                .set_symbol(symbols::line::VERTICAL);
         }
     }
-
-    vector
 }
