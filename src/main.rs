@@ -96,9 +96,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .margin(5)
                 .constraints(
                     [
-                        Constraint::Percentage(40),
                         Constraint::Percentage(20),
                         Constraint::Percentage(40),
+                        Constraint::Percentage(20),
                     ]
                     .as_ref(),
                 )

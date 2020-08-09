@@ -70,7 +70,7 @@ impl<'a> Widget for Timer<'a> {
             )
             .split(centered);
 
-        let areas_of_interest = vec![areas[0], areas[1], areas[3], areas[4], areas[6]];
+        let areas_of_interest = vec![areas[0], areas[2], areas[3], areas[4], areas[6]];
 
         let graphemes = match self.time_remaining {
             Some(timer) => timer.chars(),
@@ -105,13 +105,21 @@ fn get_rendering_instructions(area: Rect) -> Vec<((u16, u16), &'static str)> {
     let mut vector: Vec<((u16, u16), &'static str)> = Vec::new();
 
     for x in area.x..area.width + area.x {
-        vector.push(((x, area.y), symbols::line::HORIZONTAL_UP));
-        vector.push(((x, area.height + area.y - 1), symbols::line::HORIZONTAL_DOWN));
+        vector.push(((x, area.y), symbols::line::HORIZONTAL));
+        vector.push(((x, area.height + area.y - 1), symbols::line::HORIZONTAL));
     }
 
     for y in area.y..area.height + area.y {
-        vector.push(((area.x, y), symbols::line::VERTICAL_LEFT));
-        vector.push(((area.width + area.x - 1, y), symbols::line::VERTICAL_RIGHT));
+        if y == area.y {
+            vector.push(((area.x, y), symbols::line::TOP_LEFT));
+            vector.push(((area.width + area.x - 1, y), symbols::line::TOP_RIGHT));
+        } else if y == area.height + area.y - 1 {
+            vector.push(((area.x, y), symbols::line::BOTTOM_LEFT));
+            vector.push(((area.width + area.x - 1, y), symbols::line::BOTTOM_RIGHT));
+        } else {
+            vector.push(((area.x, y), symbols::line::VERTICAL));
+            vector.push(((area.width + area.x - 1, y), symbols::line::VERTICAL));
+        }
     }
 
     vector
