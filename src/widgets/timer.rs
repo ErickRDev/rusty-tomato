@@ -66,7 +66,14 @@ impl<'a> Widget for Timer<'a> {
 
         let inner_areas = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(10), Constraint::Percentage(90)].as_ref())
+            .constraints(
+                [
+                    Constraint::Percentage(10),
+                    Constraint::Percentage(30),
+                    Constraint::Percentage(60),
+                ]
+                .as_ref(),
+            )
             .split(outer_area);
 
         if self.draw_borders {
@@ -113,7 +120,7 @@ impl<'a> Widget for Timer<'a> {
                 ]
                 .as_ref(),
             )
-            .split(inner_areas[1]);
+            .split(inner_areas[2]);
 
         let graphemes_areas = vec![
             timer_areas[0],

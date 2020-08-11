@@ -104,8 +104,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 )
                 .split(size);
 
-            f.render_widget(Clear, chunks[1]);
-
             if draw_borders {
                 f.render_widget(block.clone(), chunks[1]);
             }
@@ -114,6 +112,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             if is_due {
                 app.finish_current_cycle();
+            }
+
+            if app.is_paused() {
+                // TODO: render paused widgets here
+                // app.current_cycle.in
+                // chunks[0];
             }
 
             let is_paused = app.is_paused();

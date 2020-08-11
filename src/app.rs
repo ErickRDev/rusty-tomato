@@ -6,12 +6,38 @@ pub enum PomodoroStage {
     LongBreak,
 }
 
+pub struct Interruption {
+    started_at: Instant,
+    finished_at: Option<Instant>,
+    annotation: Option<String>,
+}
+
+impl Clone for Interruption {
+    fn clone(&self) -> Interruption {
+        Interruption {
+            started_at: self.started_at.clone(),
+            finished_at: self.finished_at.clone(),
+            annotation: self.annotation.clone(),
+        }
+    }
+}
+
+impl Interruption {
+    fn new(started_at: Instant) -> Interruption {
+        Interruption {
+            started_at: started_at,
+            finished_at: None,
+            annotation: None,
+        }
+    }
+}
+
 pub struct PomodoroCycle {
     stage_iteration: usize,
     started_at: Option<Instant>,
     finished_at: Option<Instant>,
-    interruptions: Vec<(Instant, Option<Instant>)>,
-    is_paused: bool,
+    interruptions_history: Vec<Interruption>,
+    interruption: Option<Interruption>,
 }
 
 impl Clone for PomodoroCycle {
@@ -20,8 +46,8 @@ impl Clone for PomodoroCycle {
             stage_iteration: self.stage_iteration,
             started_at: self.started_at.clone(),
             finished_at: self.finished_at.clone(),
-            interruptions: self.interruptions.clone(),
-            is_paused: self.is_paused,
+            interruptions_history: self.interruptions_history.clone(),
+            interruption: self.interruption.clone(),
         }
     }
 }
@@ -32,8 +58,8 @@ impl PomodoroCycle {
             stage_iteration: stage_iteration,
             started_at: None,
             finished_at: None,
-            interruptions: Vec::new(),
-            is_paused: false,
+            interruptions_history: Vec::new(),
+            interruption: None,
         }
     }
 }
@@ -80,8 +106,8 @@ impl Default for App {
                 stage_iteration: 0,
                 started_at: None,
                 finished_at: None,
-                interruptions: Vec::new(),
-                is_paused: false,
+                interruptions_history: Vec::new(),
+                interruption: None,
             },
             history: Vec::new(),
         }
@@ -91,7 +117,7 @@ impl Default for App {
 impl App {
     /// Returns a boolean indicating whether the current cycle is paused or not.
     pub fn is_paused(&self) -> bool {
-        self.current_cycle.is_paused
+        self.current_cycle.interruption.is_some()
     }
 
     /// TODO: docstring
@@ -115,16 +141,14 @@ impl App {
             return;
         }
 
-        let interruption: (Instant, Option<Instant>) = match self.current_cycle.is_paused {
-            true => {
-                let (paused_at, _) = self.current_cycle.interruptions.pop().unwrap();
-                (paused_at, Some(toggled_at))
-            }
-            false => (toggled_at, None),
-        };
-
-        self.current_cycle.interruptions.push(interruption);
-        self.current_cycle.is_paused = !self.current_cycle.is_paused;
+        if self.current_cycle.interruption.is_none() {
+            self.current_cycle.interruption = Some(Interruption::new(toggled_at));
+        } else {
+            let mut interruption = self.current_cycle.interruption.take().unwrap();
+            interruption.finished_at = Some(toggled_at);
+            interruption.annotation = Some(String::from("foo"));
+            self.current_cycle.interruptions_history.push(interruption);
+        }
     }
 
     /// Calculates the elapsed duration of the current pomodoro stage.
@@ -141,31 +165,27 @@ impl App {
 
         let started_at = self.current_cycle.started_at.unwrap();
 
-        if self.current_cycle.interruptions.len() == 0 {
+        if self.current_cycle.interruptions_history.len() == 0 {
             // There were no interruptions up to this point
             // so its straight-forward to calculate the elapsed time
             return Instant::now() - started_at;
         }
 
-        let total_elapsed_on_pauses: Duration = self.current_cycle.interruptions.iter().fold(
-            Duration::new(0, 0),
-            |total, &(paused_at, resumed_at)| {
-                let elapsed = match resumed_at {
-                    Some(instant) => (instant - paused_at),
+        let total_elapsed_on_pauses: Duration = self
+            .current_cycle
+            .interruptions_history
+            .iter()
+            .fold(Duration::new(0, 0), |total, interruption| {
+                let elapsed = match interruption.finished_at {
+                    Some(finished_at) => (finished_at - interruption.started_at),
                     None => Duration::new(0, 0),
                 };
                 total + elapsed
-            },
-        );
+            });
 
-        let was_last_active_at = match self.current_cycle.is_paused {
-            true => {
-                let interruption = self.current_cycle.interruptions.pop().unwrap();
-                let paused_at = interruption.0.clone();
-                self.current_cycle.interruptions.push(interruption);
-                paused_at
-            }
-            false => Instant::now(),
+        let was_last_active_at = match self.current_cycle.interruption.as_ref() {
+            Some(interruption) => interruption.started_at,
+            None => Instant::now()
         };
 
         (was_last_active_at - started_at) - total_elapsed_on_pauses
@@ -173,13 +193,9 @@ impl App {
 
     /// TODO: docstring
     pub fn get_pause_elapsed_time(&mut self) -> u64 {
-        if self.current_cycle.is_paused {
-            let interruption = self.current_cycle.interruptions.pop().unwrap();
-            let paused_at = interruption.0.clone();
-            self.current_cycle.interruptions.push(interruption);
-            (Instant::now() - paused_at).as_secs()
-        } else {
-            0
+        match self.current_cycle.interruption.as_ref() {
+            Some(interruption) => (Instant::now() - interruption.started_at).as_secs(),
+            None => 0,
         }
     }
 
