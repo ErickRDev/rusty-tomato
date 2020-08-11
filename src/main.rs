@@ -20,7 +20,7 @@ use crossterm::{
 
 use tui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Alignment},
     style::{Color, Style},
     text::{Span, Text},
     widgets::{Block, Borders, Clear, Paragraph},
@@ -94,25 +94,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .margin(5)
+                .margin(1)
                 .constraints(
                     [
-                        Constraint::Percentage(30),
+                        Constraint::Percentage(20),
                         Constraint::Percentage(40),
-                        Constraint::Percentage(30),
+                        Constraint::Percentage(20),
+                        Constraint::Percentage(20),
                     ]
                     .as_ref(),
                 )
                 .split(size);
 
+            let mut pause_info_area = chunks[2];
+            pause_info_area = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(
+                    [
+                        Constraint::Percentage(30),
+                        Constraint::Percentage(40),
+                        Constraint::Percentage(30)
+                    ]
+                    .as_ref(),
+                )
+                .split(pause_info_area)[1];
+
             if draw_borders {
-                f.render_widget(block.clone(), chunks[1]);
-            }
-
-            let (is_due, remaining_time) = app.get_remaining_time();
-
-            if is_due {
-                app.finish_current_cycle();
+                f.render_widget(block.clone(), pause_info_area);
             }
 
             if app.is_paused() {
@@ -126,8 +134,31 @@ fn main() -> Result<(), Box<dyn Error>> {
                     minutes, seconds
                 ))));
 
-                let paragraph = Paragraph::new(span);
-                f.render_widget(paragraph, chunks[0]);
+                let paragraph = Paragraph::new(span).alignment(Alignment::Center);
+                f.render_widget(paragraph, pause_info_area);
+            }
+
+            let mut timer_info_area = chunks[1];
+            timer_info_area = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(
+                    [
+                        Constraint::Percentage(30),
+                        Constraint::Percentage(40),
+                        Constraint::Percentage(30)
+                    ]
+                    .as_ref(),
+                )
+                .split(timer_info_area)[1];
+
+            if draw_borders {
+                f.render_widget(block.clone(), timer_info_area);
+            }
+
+            let (is_due, remaining_time) = app.get_remaining_time();
+
+            if is_due {
+                app.finish_current_cycle();
             }
 
             let clock = Timer::default()
@@ -136,7 +167,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .is_paused(app.is_paused())
                 .is_due(is_due);
 
-            f.render_widget(clock, chunks[1]);
+            f.render_widget(clock, timer_info_area);
         })?;
 
         match rx.recv()? {
