@@ -158,7 +158,7 @@ impl App {
     /// 2. The timer has started, but there were no pauses yet
     /// 3. The timer has started, there were pauses, but not currently paused
     /// 4. The timer has started, there were pauses, is currently paused
-    fn get_elapsed_time(&mut self) -> Duration {
+    fn get_elapsed_time(&self) -> Duration {
         if self.current_cycle.started_at.is_none() {
             return Duration::new(0, 0);
         }
@@ -185,14 +185,14 @@ impl App {
 
         let was_last_active_at = match self.current_cycle.interruption.as_ref() {
             Some(interruption) => interruption.started_at,
-            None => Instant::now()
+            None => Instant::now(),
         };
 
         (was_last_active_at - started_at) - total_elapsed_on_pauses
     }
 
     /// TODO: docstring
-    pub fn get_pause_elapsed_time(&mut self) -> u64 {
+    pub fn get_pause_elapsed_time(&self) -> u64 {
         match self.current_cycle.interruption.as_ref() {
             Some(interruption) => (Instant::now() - interruption.started_at).as_secs(),
             None => 0,

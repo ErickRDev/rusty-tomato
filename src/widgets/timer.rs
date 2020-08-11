@@ -38,9 +38,8 @@ impl<'a> Timer<'a> {
         self
     }
 
-    pub fn is_paused(mut self, is_paused: bool, has_been_paused_for: Option<u64>) -> Timer<'a> {
+    pub fn is_paused(mut self, is_paused: bool) -> Timer<'a> {
         self.is_paused = is_paused;
-        self.has_been_paused_for = has_been_paused_for;
         self
     }
 
@@ -80,30 +79,6 @@ impl<'a> Widget for Timer<'a> {
             for vertical_box in &inner_areas {
                 draw_borders(vertical_box, buf);
             }
-        }
-
-        if self.is_paused {
-            let pause_info_area = inner_areas[0];
-
-            // TODO: maybe remove the unecessary 'is_paused' boolean?
-            // if the `has_been_paused_for` property is Option<u64>,
-            // we can use the `None` variant to verify whether the
-            // timer is paused or not.
-            let has_been_paused_for = self.has_been_paused_for.unwrap();
-
-            let minutes = has_been_paused_for / 60;
-            let seconds = has_been_paused_for % 60;
-
-            // TODO: ensure there's space in buffer to write the string
-            let text = format!("PAUSED {} {:02}:{:02}", symbols::DOT, minutes, seconds);
-            (0..text.len())
-                .map(|i| (pause_info_area.x + i as u16, pause_info_area.y))
-                .zip(text.chars())
-                .for_each(|((x, y), c)| {
-                    &buf.get_mut(x, y)
-                        .set_char(c)
-                        .set_style(Style::default().fg(Color::Red));
-                });
         }
 
         let timer_areas = Layout::default()

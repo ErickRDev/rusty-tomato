@@ -22,7 +22,8 @@ use tui::{
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
-    widgets::{Block, Borders, Clear},
+    text::{Span, Text},
+    widgets::{Block, Borders, Clear, Paragraph},
     Terminal,
 };
 
@@ -115,22 +116,24 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
 
             if app.is_paused() {
-                // TODO: render paused widgets here
-                // app.current_cycle.in
-                // chunks[0];
-            }
+                let has_been_paused_for = app.get_pause_elapsed_time();
 
-            let is_paused = app.is_paused();
-            let elapsed_pause_time: Option<u64> = if is_paused {
-                Some(app.get_pause_elapsed_time())
-            } else {
-                None
-            };
+                let minutes = has_been_paused_for / 60;
+                let seconds = has_been_paused_for % 60;
+
+                let span = Text::from(Span::from(String::from(format!(
+                    "{:02}:{:02}",
+                    minutes, seconds
+                ))));
+
+                let paragraph = Paragraph::new(span);
+                f.render_widget(paragraph, chunks[0]);
+            }
 
             let clock = Timer::default()
                 .time_remaining(&remaining_time)
                 .borders(draw_borders)
-                .is_paused(is_paused, elapsed_pause_time)
+                .is_paused(app.is_paused())
                 .is_due(is_due);
 
             f.render_widget(clock, chunks[1]);
