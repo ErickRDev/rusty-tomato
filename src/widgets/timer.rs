@@ -51,7 +51,6 @@ impl<'a> Timer<'a> {
 
 impl<'a> Widget for Timer<'a> {
     fn render(self, area: Rect, buf: &mut Buffer) {
-
         if self.draw_borders {
             draw_borders(&area, buf);
         }

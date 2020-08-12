@@ -20,7 +20,7 @@ use crossterm::{
 
 use tui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout, Alignment},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Style},
     text::{Span, Text},
     widgets::{Block, Borders, Clear, Paragraph},
@@ -113,7 +113,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     [
                         Constraint::Percentage(30),
                         Constraint::Percentage(40),
-                        Constraint::Percentage(30)
+                        Constraint::Percentage(30),
                     ]
                     .as_ref(),
                 )
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     [
                         Constraint::Percentage(30),
                         Constraint::Percentage(40),
-                        Constraint::Percentage(30)
+                        Constraint::Percentage(30),
                     ]
                     .as_ref(),
                 )

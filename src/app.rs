@@ -165,7 +165,9 @@ impl App {
 
         let started_at = self.current_cycle.started_at.unwrap();
 
-        if self.current_cycle.interruptions_history.len() == 0 {
+        if self.current_cycle.interruptions_history.len() == 0
+            && self.current_cycle.interruption.is_none()
+        {
             // There were no interruptions up to this point
             // so its straight-forward to calculate the elapsed time
             return Instant::now() - started_at;
