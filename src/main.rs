@@ -13,6 +13,7 @@ use std::sync::mpsc;
 use std::thread;
 
 use crossterm::{
+    cursor,
     event::{self, read, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
@@ -27,7 +28,7 @@ use tui::{
     Terminal,
 };
 
-use crate::app::App;
+use crate::app::{App, AppView};
 use crate::widgets::Timer;
 
 #[derive(StructOpt, Debug)]
@@ -55,13 +56,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     enable_raw_mode()?;
 
     let mut stdout = stdout();
-    execute!(stdout, EnterAlternateScreen)?;
+    execute!(stdout, EnterAlternateScreen, cursor::Hide)?;
 
     let backend = CrosstermBackend::new(stdout);
-
     let mut terminal = Terminal::new(backend)?;
-    terminal.hide_cursor()?;
-    terminal.clear()?;
 
     let (tx, rx) = mpsc::channel();
 
@@ -99,15 +97,16 @@ fn main() -> Result<(), Box<dyn Error>> {
                     [
                         Constraint::Percentage(20),
                         Constraint::Percentage(40),
-                        Constraint::Percentage(20),
+                        Constraint::Percentage(5),
+                        Constraint::Percentage(15),
                         Constraint::Percentage(20),
                     ]
                     .as_ref(),
                 )
                 .split(size);
 
-            let mut pause_info_area = chunks[2];
-            pause_info_area = Layout::default()
+            let pause_timer_area = chunks[2];
+            let pause_timer_area = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints(
                     [
@@ -117,10 +116,23 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ]
                     .as_ref(),
                 )
-                .split(pause_info_area)[1];
+                .split(pause_timer_area)[1];
+
+            let pause_annotation_area = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints(
+                    [
+                        Constraint::Percentage(30),
+                        Constraint::Percentage(40),
+                        Constraint::Percentage(30),
+                    ]
+                    .as_ref(),
+                )
+                .split(chunks[3])[1];
 
             if draw_borders {
-                f.render_widget(block.clone(), pause_info_area);
+                f.render_widget(block.clone(), pause_timer_area);
+                f.render_widget(block.clone(), pause_annotation_area);
             }
 
             if app.is_paused() {
@@ -135,11 +147,34 @@ fn main() -> Result<(), Box<dyn Error>> {
                 ))));
 
                 let paragraph = Paragraph::new(span).alignment(Alignment::Center);
-                f.render_widget(paragraph, pause_info_area);
+                f.render_widget(paragraph, pause_timer_area);
+
+                match app.get_view() {
+                    AppView::AnnotationPopup => {
+                        f.render_widget(block.clone(), pause_annotation_area);
+
+                        match app.get_interruption_annotation() {
+                            Some(annotation) => {
+                                let annotation_length = annotation.len() as u16;
+                                let span = Span::from(annotation);
+                                let paragraph = Paragraph::new(span)
+                                    .block(block.clone())
+                                    .alignment(Alignment::Left);
+                                f.render_widget(paragraph, pause_annotation_area);
+                                f.set_cursor(
+                                    pause_annotation_area.x + 1 + annotation_length,
+                                    pause_annotation_area.y + 1,
+                                );
+                            }
+                            None => {}
+                        }
+                    }
+                    _ => {}
+                }
             }
 
-            let mut timer_info_area = chunks[1];
-            timer_info_area = Layout::default()
+            let pomodoro_timer_area = chunks[1];
+            let pomodoro_timer_area = Layout::default()
                 .direction(Direction::Horizontal)
                 .constraints(
                     [
@@ -149,10 +184,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                     ]
                     .as_ref(),
                 )
-                .split(timer_info_area)[1];
+                .split(pomodoro_timer_area)[1];
 
             if draw_borders {
-                f.render_widget(block.clone(), timer_info_area);
+                f.render_widget(block.clone(), pomodoro_timer_area);
             }
 
             let (is_due, remaining_time) = app.get_remaining_time();
@@ -167,26 +202,40 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .is_paused(app.is_paused())
                 .is_due(is_due);
 
-            f.render_widget(clock, timer_info_area);
+            f.render_widget(clock, pomodoro_timer_area);
         })?;
 
         match rx.recv()? {
-            TickContent::KeyPress(key_event) => match key_event.code {
-                KeyCode::Char('q') => {
-                    disable_raw_mode()?;
-                    execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
-                    break;
-                }
-                KeyCode::Char('c') => {
-                    app.finish_current_cycle();
-                }
-                KeyCode::Char('d') => {
-                    draw_borders = !draw_borders;
-                }
-                KeyCode::Char(' ') => {
-                    app.toggle_timer();
-                }
-                _ => {}
+            TickContent::KeyPress(key_event) => match app.get_view() {
+                AppView::Normal => match key_event.code {
+                    KeyCode::Char('q') => {
+                        disable_raw_mode()?;
+                        execute!(terminal.backend_mut(), cursor::Show, LeaveAlternateScreen)?;
+                        break;
+                    }
+                    KeyCode::Char('c') => {
+                        app.finish_current_cycle();
+                    }
+                    KeyCode::Char('d') => {
+                        draw_borders = !draw_borders;
+                    }
+                    KeyCode::Char(' ') => {
+                        app.toggle_timer();
+                    }
+                    _ => {}
+                },
+                AppView::AnnotationPopup => match key_event.code {
+                    KeyCode::Char(c) => {
+                        app.append_to_interruption_annotation(c);
+                    }
+                    KeyCode::Backspace => {
+                        app.pop_from_interruption_annotation();
+                    }
+                    KeyCode::Enter => {
+                        app.change_view(AppView::Normal);
+                    }
+                    _ => {}
+                },
             },
             TickContent::None => {}
         }

@@ -92,7 +92,13 @@ impl Default for AppConfiguration {
     }
 }
 
+pub enum AppView {
+    Normal,
+    AnnotationPopup,
+}
+
 pub struct App {
+    view: AppView,
     config: AppConfiguration,
     current_cycle: PomodoroCycle,
     history: Vec<PomodoroCycle>,
@@ -101,6 +107,7 @@ pub struct App {
 impl Default for App {
     fn default() -> App {
         App {
+            view: AppView::Normal,
             config: AppConfiguration::default(),
             current_cycle: PomodoroCycle {
                 stage_iteration: 0,
@@ -115,9 +122,66 @@ impl Default for App {
 }
 
 impl App {
+    /// TODO: docstring
+    pub fn change_view(&mut self, view: AppView) {
+        self.view = view
+    }
+
+    /// TODO: docstring
+    pub fn get_view(&self) -> &AppView {
+        &self.view
+    }
+
     /// Returns a boolean indicating whether the current cycle is paused or not.
     pub fn is_paused(&self) -> bool {
         self.current_cycle.interruption.is_some()
+    }
+
+    /// TODO: docstring
+    pub fn get_pause_elapsed_time(&self) -> u64 {
+        match self.current_cycle.interruption.as_ref() {
+            Some(interruption) => (Instant::now() - interruption.started_at).as_secs(),
+            None => 0,
+        }
+    }
+
+    /// TODO: docstring
+    pub fn append_to_interruption_annotation(&mut self, c: char) {
+        self.current_cycle
+            .interruption
+            .as_mut()
+            .and_then(|interruption| match interruption.annotation.as_mut() {
+                Some(annotation) => {
+                    annotation.push(c);
+                    Some(())
+                }
+                None => {
+                    interruption.annotation = Some(c.to_string());
+                    Some(())
+                }
+            });
+    }
+
+    pub fn pop_from_interruption_annotation(&mut self) {
+        self.current_cycle
+            .interruption
+            .as_mut()
+            .and_then(|interruption| match interruption.annotation.as_mut() {
+                Some(annotation) => {
+                    annotation.pop();
+                    Some(())
+                }
+                None => None
+            });
+    }
+
+
+    /// TODO: docstring
+    pub fn get_interruption_annotation(&self) -> Option<String> {
+        match self.current_cycle.interruption.as_ref() {
+            Some(interruption) => interruption.annotation.clone(),
+            None => None,
+        }
     }
 
     /// TODO: docstring
@@ -143,10 +207,10 @@ impl App {
 
         if self.current_cycle.interruption.is_none() {
             self.current_cycle.interruption = Some(Interruption::new(toggled_at));
+            self.view = AppView::AnnotationPopup;
         } else {
             let mut interruption = self.current_cycle.interruption.take().unwrap();
             interruption.finished_at = Some(toggled_at);
-            interruption.annotation = Some(String::from("foo"));
             self.current_cycle.interruptions_history.push(interruption);
         }
     }
@@ -191,14 +255,6 @@ impl App {
         };
 
         (was_last_active_at - started_at) - total_elapsed_on_pauses
-    }
-
-    /// TODO: docstring
-    pub fn get_pause_elapsed_time(&self) -> u64 {
-        match self.current_cycle.interruption.as_ref() {
-            Some(interruption) => (Instant::now() - interruption.started_at).as_secs(),
-            None => 0,
-        }
     }
 
     /// Returns whether the currently configured timer is due
