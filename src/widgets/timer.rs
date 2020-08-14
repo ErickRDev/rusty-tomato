@@ -6,6 +6,98 @@ use tui::{
     widgets::Widget,
 };
 
+const GRAPHEME_UNIT_SIZE: u16 = 5;
+const GRAPHEME_DRAWING_MANUAL: [[[u8; 5]; 5]; 11] = [
+    /* 0 */
+    [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+    ],
+    /* 1 */
+    [
+        [0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 1, 0, 0],
+    ],
+    /* 2 */
+    [
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0],
+        [1, 1, 1, 1, 1],
+    ],
+    /* 3 */
+    [
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+    ],
+    /* 4 */
+    [
+        [1, 0, 0, 0, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+    ],
+    /* 5 */
+    [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0],
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+    ],
+    /* 6 */
+    [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 0],
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+    ],
+    /* 7 */
+    [
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+    ],
+    /* 8 */
+    [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+    ],
+    /* 9 */
+    [
+        [1, 1, 1, 1, 1],
+        [1, 0, 0, 0, 1],
+        [1, 1, 1, 1, 1],
+        [0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 1],
+    ],
+    /* : */
+    [
+        [0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0],
+    ],
+];
+
 #[derive(Clone)]
 pub struct Timer<'a> {
     time_remaining: Option<&'a str>,
@@ -79,28 +171,61 @@ impl<'a> Widget for Timer<'a> {
             timer_areas[6],
         ];
 
-        let graphemes = match self.time_remaining {
-            Some(timer) => timer.chars(),
-            None => return,
-        };
+        if self.time_remaining.is_none() {
+            return;
+        }
+
+        let time_remaining_str = self.time_remaining.unwrap();
 
         graphemes_areas
             .iter()
-            .zip(graphemes)
-            .for_each(|(&area, grapheme)| {
+            .zip(time_remaining_str.chars())
+            .for_each(|(&area, c)| {
                 if self.draw_borders {
                     draw_borders(&area, buf);
                 }
 
-                let x = area.x + (area.width / 2);
-                let y = area.y + (area.height / 2);
-
                 let style = match self.is_due || self.is_paused {
                     true => Style::default().fg(Color::Red),
-                    false => Style::default().fg(Color::White),
+                    false => Style::default().fg(Color::Gray),
                 };
 
-                buf.get_mut(x, y).set_char(grapheme).set_style(style);
+                let can_draw_grapheme =
+                    area.height >= GRAPHEME_UNIT_SIZE && area.width >= GRAPHEME_UNIT_SIZE;
+
+                if can_draw_grapheme {
+                    let drawing_instructions = match c.to_digit(10) {
+                        Some(digit) if digit <= 9 => {
+                            let digit = digit as usize;
+                            GRAPHEME_DRAWING_MANUAL[digit]
+                        }
+                        Some(_) | None => GRAPHEME_DRAWING_MANUAL[10],
+                    };
+
+                    let x0 = area.x + (area.width / 2) - (GRAPHEME_UNIT_SIZE / 2);
+                    let y0 = area.y + (area.height / 2) - (GRAPHEME_UNIT_SIZE / 2);
+
+                    for (j, row) in drawing_instructions.iter().enumerate() {
+                        for (i, digit) in row.iter().enumerate() {
+                            let i = i as u16;
+                            let j = j as u16;
+
+                            let symbol = match digit {
+                                1 => symbols::bar::FULL,
+                                _ => continue,
+                            };
+
+                            buf.get_mut(x0 + i, y0 + j)
+                                .set_symbol(symbol)
+                                .set_style(style);
+                        }
+                    }
+                } else {
+                    let x = area.x + (area.width / 2);
+                    let y = area.y + (area.height / 2);
+
+                    buf.get_mut(x, y).set_char(c).set_style(style);
+                }
             });
     }
 }

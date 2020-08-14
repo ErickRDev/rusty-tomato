@@ -171,10 +171,9 @@ impl App {
                     annotation.pop();
                     Some(())
                 }
-                None => None
+                None => None,
             });
     }
-
 
     /// TODO: docstring
     pub fn get_interruption_annotation(&self) -> Option<String> {

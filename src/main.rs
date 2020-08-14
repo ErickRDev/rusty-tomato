@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             f.render_widget(Clear, size);
 
             let block = Block::default()
-                .style(Style::default().fg(Color::Yellow))
+                .style(Style::default().fg(Color::Red))
                 .borders(Borders::ALL);
 
             if draw_borders {
