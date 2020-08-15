@@ -22,9 +22,9 @@ use crossterm::{
 use tui::{
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Style},
-    text::{Span, Text},
-    widgets::{Block, Borders, Clear, Paragraph},
+    style::{Color, Modifier, Style},
+    text::{Span, Spans, Text},
+    widgets::{Block, Borders, BorderType, Clear, List, ListItem, Paragraph},
     Terminal,
 };
 
@@ -82,12 +82,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             let size = f.size();
             f.render_widget(Clear, size);
 
-            let block = Block::default()
+            let red_block = Block::default()
                 .style(Style::default().fg(Color::Red))
                 .borders(Borders::ALL);
 
             if draw_borders {
-                f.render_widget(block.clone(), size);
+                f.render_widget(red_block.clone(), size);
             }
 
             let chunks = Layout::default()
@@ -131,8 +131,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .split(chunks[3])[1];
 
             if draw_borders {
-                f.render_widget(block.clone(), pause_timer_area);
-                f.render_widget(block.clone(), pause_annotation_area);
+                f.render_widget(red_block.clone(), pause_timer_area);
+                f.render_widget(red_block.clone(), pause_annotation_area);
             }
 
             if app.is_paused() {
@@ -151,14 +151,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 
                 match app.get_view() {
                     AppView::AnnotationPopup => {
-                        f.render_widget(block.clone(), pause_annotation_area);
+                        f.render_widget(red_block.clone(), pause_annotation_area);
 
                         match app.get_interruption_annotation() {
                             Some(annotation) => {
                                 let annotation_length = annotation.len() as u16;
                                 let span = Span::from(annotation);
                                 let paragraph = Paragraph::new(span)
-                                    .block(block.clone())
+                                    .block(red_block.clone())
                                     .alignment(Alignment::Left);
                                 f.render_widget(paragraph, pause_annotation_area);
                                 f.set_cursor(
@@ -187,7 +187,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .split(pomodoro_timer_area)[1];
 
             if draw_borders {
-                f.render_widget(block.clone(), pomodoro_timer_area);
+                f.render_widget(red_block.clone(), pomodoro_timer_area);
             }
 
             let (is_due, remaining_time) = app.get_remaining_time();
@@ -203,6 +203,72 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .is_due(is_due);
 
             f.render_widget(clock, pomodoro_timer_area);
+
+            match app.get_view() {
+                AppView::InterruptionsList => {
+                    let interruptions_panel = Layout::default()
+                        .direction(Direction::Vertical)
+                        .margin(1)
+                        .constraints(
+                            [
+                                Constraint::Percentage(20),
+                                Constraint::Percentage(60),
+                                Constraint::Percentage(20),
+                            ]
+                            .as_ref(),
+                        )
+                        .split(size);
+
+                    let interruptions_panel = Layout::default()
+                        .direction(Direction::Horizontal)
+                        .constraints(
+                            [
+                                Constraint::Percentage(40),
+                                Constraint::Percentage(20),
+                                Constraint::Percentage(40),
+                            ]
+                            .as_ref(),
+                        )
+                        .split(interruptions_panel[1])[1];
+
+                    if draw_borders {
+                        f.render_widget(red_block.clone(), interruptions_panel);
+                    }
+
+                    let interruptions: Vec<ListItem> = app
+                        .get_interruption_history()
+                        .iter()
+                        .map(|interruption| {
+                            let duration = (interruption.finished_at.unwrap()
+                                - interruption.started_at)
+                                .as_secs();
+                            let annotation = interruption
+                                .annotation
+                                .as_ref()
+                                .map_or(String::from(""), |annotation| annotation.to_string());
+
+                            ListItem::new(Spans::from(vec![
+                                Span::from(duration.to_string()),
+                                Span::raw(" "),
+                                Span::from(annotation),
+                            ]))
+                        })
+                        .collect();
+
+                    let interruptions_list = List::new(interruptions)
+                        .block(
+                            Block::default()
+                                .title(Span::from("INTERRUPTIONS"))
+                                .borders(Borders::ALL)
+                                .border_type(BorderType::Rounded)
+                        )
+                        .highlight_style(Style::default().add_modifier(Modifier::ITALIC));
+
+                    f.render_widget(Clear, interruptions_panel);
+                    f.render_widget(interruptions_list, interruptions_panel);
+                }
+                _ => {}
+            }
         })?;
 
         match rx.recv()? {
@@ -222,6 +288,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                     KeyCode::Char(' ') => {
                         app.toggle_timer();
                     }
+                    KeyCode::Char('i') => {
+                        app.change_view(AppView::InterruptionsList);
+                    }
                     _ => {}
                 },
                 AppView::AnnotationPopup => match key_event.code {
@@ -235,6 +304,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         app.change_view(AppView::Normal);
                     }
                     _ => {}
+                },
+                AppView::InterruptionsList => match key_event.code {
+                    _ => app.change_view(AppView::Normal),
                 },
             },
             TickContent::None => {}

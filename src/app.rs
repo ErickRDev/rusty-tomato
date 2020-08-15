@@ -7,9 +7,9 @@ pub enum PomodoroStage {
 }
 
 pub struct Interruption {
-    started_at: Instant,
-    finished_at: Option<Instant>,
-    annotation: Option<String>,
+    pub started_at: Instant,
+    pub finished_at: Option<Instant>,
+    pub annotation: Option<String>,
 }
 
 impl Clone for Interruption {
@@ -95,6 +95,7 @@ impl Default for AppConfiguration {
 pub enum AppView {
     Normal,
     AnnotationPopup,
+    InterruptionsList,
 }
 
 pub struct App {
@@ -122,22 +123,18 @@ impl Default for App {
 }
 
 impl App {
-    /// TODO: docstring
     pub fn change_view(&mut self, view: AppView) {
         self.view = view
     }
 
-    /// TODO: docstring
     pub fn get_view(&self) -> &AppView {
         &self.view
     }
 
-    /// Returns a boolean indicating whether the current cycle is paused or not.
     pub fn is_paused(&self) -> bool {
         self.current_cycle.interruption.is_some()
     }
 
-    /// TODO: docstring
     pub fn get_pause_elapsed_time(&self) -> u64 {
         match self.current_cycle.interruption.as_ref() {
             Some(interruption) => (Instant::now() - interruption.started_at).as_secs(),
@@ -145,7 +142,6 @@ impl App {
         }
     }
 
-    /// TODO: docstring
     pub fn append_to_interruption_annotation(&mut self, c: char) {
         self.current_cycle
             .interruption
@@ -175,7 +171,6 @@ impl App {
             });
     }
 
-    /// TODO: docstring
     pub fn get_interruption_annotation(&self) -> Option<String> {
         match self.current_cycle.interruption.as_ref() {
             Some(interruption) => interruption.annotation.clone(),
@@ -183,7 +178,10 @@ impl App {
         }
     }
 
-    /// TODO: docstring
+    pub fn get_interruption_history(&self) -> &Vec<Interruption> {
+        &self.current_cycle.interruptions_history
+    }
+
     pub fn get_current_stage(&self) -> &PomodoroStage {
         let idx = self.current_cycle.stage_iteration % self.config.stage_sequence.len();
         &self.config.stage_sequence[idx]
@@ -288,7 +286,6 @@ impl App {
         (false, format!("{:02}:{:02}", minutes, seconds))
     }
 
-    /// TODO: docstring
     pub fn finish_current_cycle(&mut self) {
         if self.current_cycle.finished_at.is_none() {
             self.current_cycle.finished_at = Some(Instant::now());
