@@ -9,9 +9,3 @@
 log
 # bundle file
 bundled.zip
-
-# scripts useful during development stages
-# e.g.
-# useful when developing OS-specific functionality from WSL:
-#   script used to bundle & ship codebase to host OS, build and execute
-dev_scripts/*
