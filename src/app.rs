@@ -1,4 +1,11 @@
-use std::time::{Duration, Instant};
+use std::{
+    fs::File,
+    io::BufReader,
+    time::{Duration, Instant},
+};
+
+use rodio::Source;
+use wsl;
 
 pub enum PomodoroStage {
     Work,
@@ -290,7 +297,21 @@ impl App {
         if self.current_cycle.finished_at.is_none() {
             self.current_cycle.finished_at = Some(Instant::now());
         }
+
         self.history.push(self.current_cycle.clone());
         self.current_cycle = PomodoroCycle::new(self.current_cycle.stage_iteration + 1);
+
+        if !wsl::is_wsl() {
+            if let Some(device) = rodio::default_output_device() {
+                if let Ok(file) = File::open("sounds/beep.wav") {
+                    if let Ok(src) = rodio::Decoder::new(BufReader::new(file)) {
+                        rodio::play_raw(
+                            &device,
+                            src.take_duration(Duration::from_secs(1)).convert_samples(),
+                        );
+                    }
+                }
+            }
+        }
     }
 }

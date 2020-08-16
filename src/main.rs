@@ -24,7 +24,7 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, BorderType, Clear, List, ListItem, Paragraph},
+    widgets::{Block, BorderType, Borders, Clear, List, ListItem, Paragraph},
     Terminal,
 };
 
@@ -66,15 +66,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     thread::spawn(move || loop {
         if event::poll(Duration::from_millis(opts.tick_duration)).unwrap() {
             if let Event::Key(key) = read().unwrap() {
-                tx.send(TickContent::KeyPress(key)).unwrap();
+                tx.send(TickContent::KeyPress(key)).unwrap_or_default();
             }
         }
 
-        tx.send(TickContent::None).unwrap();
+        tx.send(TickContent::None).unwrap_or_default();
     });
 
     let mut draw_borders = false;
-
     let mut app = App::default();
 
     loop {
@@ -260,7 +259,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             Block::default()
                                 .title(Span::from("INTERRUPTIONS"))
                                 .borders(Borders::ALL)
-                                .border_type(BorderType::Rounded)
+                                .border_type(BorderType::Rounded),
                         )
                         .highlight_style(Style::default().add_modifier(Modifier::ITALIC));
 
