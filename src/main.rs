@@ -1,5 +1,6 @@
-pub mod app;
-pub mod widgets;
+mod app;
+mod pomodoro_technique;
+mod widgets;
 
 use structopt::StructOpt;
 
@@ -94,8 +95,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 .margin(1)
                 .constraints(
                     [
-                        Constraint::Percentage(20),
-                        Constraint::Percentage(40),
+                        Constraint::Percentage(30),
+                        Constraint::Percentage(30),
                         Constraint::Percentage(5),
                         Constraint::Percentage(15),
                         Constraint::Percentage(20),

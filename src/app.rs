@@ -4,78 +4,16 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::pomodoro_technique::{Cycle, Interruption, Stage};
+
 use rodio::Source;
 use wsl;
-
-pub enum PomodoroStage {
-    Work,
-    ShortBreak,
-    LongBreak,
-}
-
-pub struct Interruption {
-    pub started_at: Instant,
-    pub finished_at: Option<Instant>,
-    pub annotation: Option<String>,
-}
-
-impl Clone for Interruption {
-    fn clone(&self) -> Interruption {
-        Interruption {
-            started_at: self.started_at.clone(),
-            finished_at: self.finished_at.clone(),
-            annotation: self.annotation.clone(),
-        }
-    }
-}
-
-impl Interruption {
-    fn new(started_at: Instant) -> Interruption {
-        Interruption {
-            started_at: started_at,
-            finished_at: None,
-            annotation: None,
-        }
-    }
-}
-
-pub struct PomodoroCycle {
-    stage_iteration: usize,
-    started_at: Option<Instant>,
-    finished_at: Option<Instant>,
-    interruptions_history: Vec<Interruption>,
-    interruption: Option<Interruption>,
-}
-
-impl Clone for PomodoroCycle {
-    fn clone(&self) -> PomodoroCycle {
-        PomodoroCycle {
-            stage_iteration: self.stage_iteration,
-            started_at: self.started_at.clone(),
-            finished_at: self.finished_at.clone(),
-            interruptions_history: self.interruptions_history.clone(),
-            interruption: self.interruption.clone(),
-        }
-    }
-}
-
-impl PomodoroCycle {
-    pub fn new(stage_iteration: usize) -> PomodoroCycle {
-        PomodoroCycle {
-            stage_iteration: stage_iteration,
-            started_at: None,
-            finished_at: None,
-            interruptions_history: Vec::new(),
-            interruption: None,
-        }
-    }
-}
 
 pub struct AppConfiguration {
     work_duration: Duration,
     short_break_duration: Duration,
     long_break_duration: Duration,
-    stage_sequence: [PomodoroStage; 8],
+    stage_sequence: [Stage; 8],
 }
 
 impl Default for AppConfiguration {
@@ -86,14 +24,14 @@ impl Default for AppConfiguration {
             long_break_duration: Duration::new(1200, 0),
             // TODO: make sequence configurable
             stage_sequence: [
-                PomodoroStage::Work,
-                PomodoroStage::ShortBreak,
-                PomodoroStage::Work,
-                PomodoroStage::ShortBreak,
-                PomodoroStage::Work,
-                PomodoroStage::ShortBreak,
-                PomodoroStage::Work,
-                PomodoroStage::LongBreak,
+                Stage::Work,
+                Stage::ShortBreak,
+                Stage::Work,
+                Stage::ShortBreak,
+                Stage::Work,
+                Stage::ShortBreak,
+                Stage::Work,
+                Stage::LongBreak,
             ],
         }
     }
@@ -106,22 +44,22 @@ pub enum AppView {
 }
 
 pub struct App {
-    view: AppView,
     config: AppConfiguration,
-    current_cycle: PomodoroCycle,
-    history: Vec<PomodoroCycle>,
+    current_view: AppView,
+    current_cycle: Cycle,
+    history: Vec<Cycle>,
 }
 
 impl Default for App {
     fn default() -> App {
         App {
-            view: AppView::Normal,
+            current_view: AppView::Normal,
             config: AppConfiguration::default(),
-            current_cycle: PomodoroCycle {
+            current_cycle: Cycle {
                 stage_iteration: 0,
                 started_at: None,
                 finished_at: None,
-                interruptions_history: Vec::new(),
+                interruption_history: Vec::new(),
                 interruption: None,
             },
             history: Vec::new(),
@@ -131,11 +69,11 @@ impl Default for App {
 
 impl App {
     pub fn change_view(&mut self, view: AppView) {
-        self.view = view
+        self.current_view = view
     }
 
     pub fn get_view(&self) -> &AppView {
-        &self.view
+        &self.current_view
     }
 
     pub fn is_paused(&self) -> bool {
@@ -186,10 +124,10 @@ impl App {
     }
 
     pub fn get_interruption_history(&self) -> &Vec<Interruption> {
-        &self.current_cycle.interruptions_history
+        &self.current_cycle.interruption_history
     }
 
-    pub fn get_current_stage(&self) -> &PomodoroStage {
+    pub fn get_current_stage(&self) -> &Stage {
         let idx = self.current_cycle.stage_iteration % self.config.stage_sequence.len();
         &self.config.stage_sequence[idx]
     }
@@ -211,11 +149,11 @@ impl App {
 
         if self.current_cycle.interruption.is_none() {
             self.current_cycle.interruption = Some(Interruption::new(toggled_at));
-            self.view = AppView::AnnotationPopup;
+            self.current_view = AppView::AnnotationPopup;
         } else {
             let mut interruption = self.current_cycle.interruption.take().unwrap();
             interruption.finished_at = Some(toggled_at);
-            self.current_cycle.interruptions_history.push(interruption);
+            self.current_cycle.interruption_history.push(interruption);
         }
     }
 
@@ -233,7 +171,7 @@ impl App {
 
         let started_at = self.current_cycle.started_at.unwrap();
 
-        if self.current_cycle.interruptions_history.len() == 0
+        if self.current_cycle.interruption_history.len() == 0
             && self.current_cycle.interruption.is_none()
         {
             // There were no interruptions up to this point
@@ -243,7 +181,7 @@ impl App {
 
         let total_elapsed_on_pauses: Duration = self
             .current_cycle
-            .interruptions_history
+            .interruption_history
             .iter()
             .fold(Duration::new(0, 0), |total, interruption| {
                 let elapsed = match interruption.finished_at {
@@ -270,13 +208,13 @@ impl App {
     /// ```
     ///
     pub fn get_remaining_time(&mut self) -> (bool, String) {
-        let duration = match self.get_current_stage() {
-            PomodoroStage::Work => self.config.work_duration,
-            PomodoroStage::ShortBreak => self.config.short_break_duration,
-            PomodoroStage::LongBreak => self.config.long_break_duration,
-        };
-
         let elapsed = self.get_elapsed_time();
+
+        let duration = match self.get_current_stage() {
+            Stage::Work => self.config.work_duration,
+            Stage::ShortBreak => self.config.short_break_duration,
+            Stage::LongBreak => self.config.long_break_duration,
+        };
 
         if elapsed >= duration {
             if self.current_cycle.finished_at.is_none() {
@@ -299,7 +237,7 @@ impl App {
         }
 
         self.history.push(self.current_cycle.clone());
-        self.current_cycle = PomodoroCycle::new(self.current_cycle.stage_iteration + 1);
+        self.current_cycle = Cycle::new(self.current_cycle.stage_iteration + 1);
 
         if !wsl::is_wsl() {
             if let Some(device) = rodio::default_output_device() {
